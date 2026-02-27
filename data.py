@@ -6,6 +6,10 @@ from torch.utils.data import DataLoader, random_split
 import shutil
 
 
+# ============================================================
+# Remove Jupyter checkpoint folders (VERY IMPORTANT)
+# ============================================================
+
 def clean_dataset_directory(data_dir):
     data_path = pathlib.Path(data_dir)
 
@@ -57,40 +61,25 @@ def prepare_data(data_dir, batch_size=32, split_ratio=0.8):
     if not os.path.exists(data_dir):
         raise FileNotFoundError(f"Dataset not found at {data_dir}")
 
-    # Clean dataset directory
     clean_dataset_directory(data_dir)
 
-    # Load dataset (no transform initially)
+    # Full dataset (no transform yet)
     full_dataset = datasets.ImageFolder(root=data_dir)
 
     dataset_size = len(full_dataset)
-
     train_size = int(split_ratio * dataset_size)
     val_size = dataset_size - train_size
 
-    # Random split indices
-    indices = torch.randperm(dataset_size).tolist()
-
-    train_indices = indices[:train_size]
-    val_indices = indices[train_size:]
-
-    # Train dataset
-    train_dataset = datasets.ImageFolder(
-        root=data_dir,
-        transform=get_saccharum_transforms(train=True)
+    # Random split (stable)
+    train_dataset, val_dataset = random_split(
+        full_dataset,
+        [train_size, val_size]
     )
 
-    train_dataset.samples = [full_dataset.samples[i] for i in train_indices]
+    # Assign transforms separately
+    train_dataset.dataset.transform = get_saccharum_transforms(train=True)
+    val_dataset.dataset.transform = get_saccharum_transforms(train=False)
 
-    # Validation dataset
-    val_dataset = datasets.ImageFolder(
-        root=data_dir,
-        transform=get_saccharum_transforms(train=False)
-    )
-
-    val_dataset.samples = [full_dataset.samples[i] for i in val_indices]
-
-    # DataLoaders
     train_loader = DataLoader(
         train_dataset,
         batch_size=batch_size,
